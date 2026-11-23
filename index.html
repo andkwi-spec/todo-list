@@ -3,13 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>To-Do List Sederhana</title>
-    <!-- Memuat Tailwind CSS untuk styling responsif dan modern -->
+    <title>Google Sheets Real-Time Editor</title>
+    <!-- Tailwind CSS untuk styling modern dan responsif -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Memuat font Inter dari Google Fonts -->
+    <!-- Font Inter untuk keterbacaan optimal -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Google Identity Services (OAuth 2.0 untuk login Google tanpa backend) -->
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
     <script>
         tailwind.config = {
             theme: {
@@ -22,551 +24,1106 @@
         }
     </script>
 </head>
-<body class="bg-slate-50 text-slate-800 font-sans min-h-screen antialiased selection:bg-indigo-100 selection:text-indigo-700">
+<body class="bg-slate-50 text-slate-800 font-sans min-h-screen antialiased flex flex-col">
 
-    <!-- Kontainer Utama -->
-    <div class="max-w-xl mx-auto w-full px-4 py-8 sm:py-12">
-
-        <!-- Header & Progress Bar -->
-        <header class="mb-6">
-            <div class="flex items-center justify-between gap-4 mb-2">
-                <div>
-                    <h1 class="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight">Daftar Tugas</h1>
-                    <p id="current-date" class="text-sm text-slate-500 mt-1"></p>
-                </div>
-                <div class="text-right">
-                    <span id="progress-text" class="text-sm font-semibold text-indigo-600 bg-indigo-50 px-3 py-1.5 rounded-full">
-                        0% Selesai
-                    </span>
-                </div>
-            </div>
-            <!-- Indikator Progress -->
-            <div class="w-full bg-slate-200 rounded-full h-2 mt-4 overflow-hidden">
-                <div id="progress-bar" class="bg-indigo-600 h-2 rounded-full transition-all duration-300 ease-out" style="width: 0%"></div>
-            </div>
-        </header>
-
-        <!-- Kartu Utama Aplikasi -->
-        <main class="bg-white rounded-2xl shadow-sm border border-slate-200/80 p-4 sm:p-6">
-
-            <!-- Form Tambah Tugas -->
-            <form id="todo-form" class="flex flex-col sm:flex-row gap-2.5 mb-6">
-                <div class="flex-1 flex gap-2">
-                    <input
-                        type="text"
-                        id="todo-input"
-                        placeholder="Tulis tugas baru di sini..."
-                        autocomplete="off"
-                        class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm sm:text-base text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500 focus:bg-white transition-all"
-                    >
-                    <select
-                        id="todo-priority"
-                        aria-label="Pilih Prioritas"
-                        class="px-3 py-3 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm font-medium text-slate-600 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500 cursor-pointer transition-all"
-                    >
-                        <option value="normal">Normal</option>
-                        <option value="penting">Penting</option>
-                        <option value="mendesak">Mendesak</option>
-                    </select>
-                </div>
-                <button
-                    type="submit"
-                    class="w-full sm:w-auto px-5 py-3 bg-indigo-600 hover:bg-indigo-700 active:scale-[0.98] text-white font-medium text-sm sm:text-base rounded-xl shadow-sm shadow-indigo-200 transition-all flex items-center justify-center gap-2 cursor-pointer"
-                >
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                        <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd" />
+    <!-- Navbar Utama -->
+    <header class="bg-white border-b border-slate-200 sticky top-0 z-30">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-3">
+            <!-- Logo & Judul -->
+            <div class="flex items-center gap-3 min-w-0">
+                <div class="w-9 h-9 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-sm shadow-emerald-200">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M3 10h18M3 14h18m-9-4v8m-7 0h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
                     </svg>
-                    <span>Tambah</span>
-                </button>
-            </form>
+                </div>
+                <div class="truncate">
+                    <h1 class="text-base sm:text-lg font-bold text-slate-900 truncate">SheetLive Editor</h1>
+                    <p id="sheet-subtitle" class="text-xs text-slate-500 truncate">Belum terhubung ke Spreadsheet</p>
+                </div>
+            </div>
 
-            <!-- Bar Filter & Statistik -->
-            <div class="flex flex-wrap items-center justify-between gap-3 pb-4 mb-4 border-b border-slate-100">
-                <div class="flex items-center gap-1 bg-slate-100 p-1 rounded-xl" role="tablist">
-                    <button type="button" data-filter="all" class="filter-btn px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-all bg-white text-slate-900 shadow-sm">
-                        Semua
-                    </button>
-                    <button type="button" data-filter="active" class="filter-btn px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-all text-slate-600 hover:text-slate-900">
-                        Aktif
-                    </button>
-                    <button type="button" data-filter="completed" class="filter-btn px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-all text-slate-600 hover:text-slate-900">
-                        Selesai
-                    </button>
+            <!-- Status & Tombol Aksi Kanan -->
+            <div class="flex items-center gap-2 sm:gap-3 shrink-0">
+                <!-- Indikator Status Koneksi -->
+                <div id="status-badge" class="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium bg-slate-100 text-slate-600">
+                    <span id="status-dot" class="w-2 h-2 rounded-full bg-slate-400"></span>
+                    <span id="status-text">Offline</span>
                 </div>
 
+                <!-- Tombol Panduan Setup -->
                 <button
                     type="button"
-                    id="clear-completed-btn"
-                    class="hidden text-xs sm:text-sm font-medium text-rose-600 hover:text-rose-700 hover:bg-rose-50 px-3 py-1.5 rounded-lg transition-all cursor-pointer"
+                    id="open-help-btn"
+                    class="p-2.5 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-xl transition-all cursor-pointer"
+                    title="Panduan Setup Google Cloud"
+                    aria-label="Panduan Setup"
                 >
-                    Hapus yang Selesai
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                </button>
+
+                <!-- Tombol Pengaturan Koneksi -->
+                <button
+                    type="button"
+                    id="toggle-config-btn"
+                    class="px-3.5 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs sm:text-sm font-medium rounded-xl transition-all flex items-center gap-2 cursor-pointer"
+                >
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                    <span>Koneksi</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Konten Utama -->
+    <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+
+        <!-- Panel Konfigurasi & Koneksi Google Sheets -->
+        <section id="config-panel" class="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 sm:p-6">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
+                <div>
+                    <h2 class="text-base sm:text-lg font-bold text-slate-900">Hubungkan ke Google Spreadsheet</h2>
+                    <p class="text-xs sm:text-sm text-slate-500 mt-0.5">Masukkan kredensial Google Cloud OAuth Client ID dan link/ID Spreadsheet kamu, atau coba Mode Demo dulu.</p>
+                </div>
+                <button
+                    type="button"
+                    id="demo-mode-btn"
+                    class="self-start sm:self-auto px-4 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs sm:text-sm font-semibold rounded-xl border border-indigo-200 transition-all cursor-pointer shrink-0"
+                >
+                    Coba Mode Demo
                 </button>
             </div>
 
-            <!-- Daftar Tugas -->
-            <ul id="todo-list" class="space-y-2.5">
-                <!-- Item tugas akan dirender secara dinamis oleh JavaScript -->
-            </ul>
-
-            <!-- Tampilan Kosong (Empty State) -->
-            <div id="empty-state" class="hidden py-12 text-center">
-                <div class="w-16 h-16 bg-slate-100 text-slate-400 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
-                    </svg>
+            <form id="connect-form" class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                    <label for="client-id-input" class="block text-xs font-semibold text-slate-700 mb-1.5">Google OAuth Client ID</label>
+                    <input
+                        type="text"
+                        id="client-id-input"
+                        placeholder="123456-xxxx.apps.googleusercontent.com"
+                        class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 focus:bg-white transition-all"
+                    >
                 </div>
-                <p id="empty-title" class="text-slate-700 font-medium text-base">Belum ada tugas</p>
-                <p id="empty-subtitle" class="text-slate-400 text-sm mt-1">Tambahkan tugas pertamamu di atas untuk mulai produktif.</p>
+
+                <div>
+                    <label for="spreadsheet-id-input" class="block text-xs font-semibold text-slate-700 mb-1.5">Spreadsheet ID atau URL Lengkap</label>
+                    <input
+                        type="text"
+                        id="spreadsheet-id-input"
+                        placeholder="Tempel URL Google Sheet atau ID-nya"
+                        class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 focus:bg-white transition-all"
+                    >
+                </div>
+
+                <div>
+                    <label for="sheet-name-input" class="block text-xs font-semibold text-slate-700 mb-1.5">Nama Tab Sheet</label>
+                    <input
+                        type="text"
+                        id="sheet-name-input"
+                        value="Sheet1"
+                        placeholder="Contoh: Sheet1"
+                        class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 focus:bg-white transition-all"
+                    >
+                </div>
+
+                <div class="md:col-span-3 flex flex-wrap items-center justify-between gap-3 pt-2">
+                    <p class="text-xs text-slate-400">
+                        Origin saat ini: <code id="current-origin" class="bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded"></code> (tambahkan ke Authorized JavaScript Origins di Google Cloud)
+                    </p>
+                    <div class="flex items-center gap-2.5">
+                        <button
+                            type="button"
+                            id="logout-btn"
+                            class="hidden px-4 py-2.5 bg-rose-50 hover:bg-rose-100 text-rose-700 text-sm font-medium rounded-xl transition-all cursor-pointer"
+                        >
+                            Putuskan Koneksi
+                        </button>
+                        <button
+                            type="submit"
+                            id="connect-google-btn"
+                            class="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] text-white text-sm font-semibold rounded-xl shadow-sm shadow-emerald-200 transition-all flex items-center gap-2 cursor-pointer"
+                        >
+                            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M21.35 11.1h-9.17v2.73h6.51c-.33 3.81-3.5 5.44-6.5 5.44C8.36 19.27 5 16.25 5 12c0-4.1 3.2-7.27 7.2-7.27 3.09 0 4.9 1.97 4.9 1.97L19 4.72S16.56 2 12.1 2C6.42 2 2.03 6.8 2.03 12c0 5.05 4.13 10 10.22 10 5.35 0 9.25-3.67 9.25-9.09 0-1.15-.15-1.81-.15-1.81z"/>
+                            </svg>
+                            <span>Login Google & Muat Data</span>
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </section>
+
+        <!-- Area Workspace Editor (muncul setelah terhubung atau masuk Mode Demo) -->
+        <section id="workspace-section" class="hidden space-y-4">
+
+            <!-- Toolbar Pencarian, Auto-Sync, Refresh, Tambah Baris -->
+            <div class="bg-white rounded-2xl border border-slate-200 p-4 flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+                <!-- Pencarian -->
+                <div class="relative flex-1 max-w-md">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                    <input
+                        type="text"
+                        id="search-input"
+                        placeholder="Cari data di dalam sheet..."
+                        class="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 focus:bg-white transition-all"
+                    >
+                </div>
+
+                <!-- Kontrol Real-Time & Aksi -->
+                <div class="flex flex-wrap items-center gap-2.5">
+                    <!-- Pilihan Auto-Sync -->
+                    <div class="flex items-center gap-2 bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-xl">
+                        <span class="text-xs font-medium text-slate-600">Auto-Sync:</span>
+                        <select id="auto-sync-select" class="bg-transparent text-xs font-semibold text-emerald-700 focus:outline-none cursor-pointer">
+                            <option value="0">Mati</option>
+                            <option value="5000" selected>Tiap 5 dtk</option>
+                            <option value="10000">Tiap 10 dtk</option>
+                            <option value="30000">Tiap 30 dtk</option>
+                        </select>
+                    </div>
+
+                    <!-- Tombol Refresh Manual -->
+                    <button
+                        type="button"
+                        id="refresh-btn"
+                        class="px-3.5 py-2.5 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 text-xs sm:text-sm font-medium rounded-xl transition-all flex items-center gap-1.5 cursor-pointer"
+                    >
+                        <svg id="refresh-icon" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                        </svg>
+                        <span>Refresh</span>
+                    </button>
+
+                    <!-- Tombol Tambah Baris -->
+                    <button
+                        type="button"
+                        id="add-row-btn"
+                        class="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs sm:text-sm font-semibold rounded-xl shadow-sm shadow-emerald-200 transition-all flex items-center gap-1.5 cursor-pointer"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd" />
+                        </svg>
+                        <span>Tambah Baris</span>
+                    </button>
+                </div>
             </div>
 
-            <!-- Footer Ringkasan -->
-            <footer class="mt-6 pt-4 border-t border-slate-100 flex items-center justify-between text-xs sm:text-sm text-slate-500">
-                <span id="items-left">0 tugas tersisa</span>
-                <span class="text-slate-400">Tersimpan otomatis di browser</span>
-            </footer>
-        </main>
+            <!-- Kontainer Tabel Spreadsheet -->
+            <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                <!-- Info Tips Edit -->
+                <div class="px-4 py-2.5 bg-slate-50/80 border-b border-slate-200 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500">
+                    <span class="flex items-center gap-1.5">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                        </svg>
+                        Klik sel mana saja untuk mengedit. Tekan <strong>Enter</strong> atau klik di luar untuk langsung menyimpan ke Google Sheets.
+                    </span>
+                    <span id="last-sync-text" class="font-medium text-slate-400">Belum disinkronkan</span>
+                </div>
+
+                <!-- Wrapper Scroll Horizontal agar responsif di layar kecil -->
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead id="sheet-thead" class="bg-slate-50 border-b border-slate-200 text-xs font-semibold text-slate-600 uppercase tracking-wider">
+                            <!-- Header dirender dinamis -->
+                        </thead>
+                        <tbody id="sheet-tbody" class="divide-y divide-slate-100 text-sm text-slate-700">
+                            <!-- Baris data dirender dinamis -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Empty State jika hasil filter kosong -->
+                <div id="table-empty-state" class="hidden py-12 text-center">
+                    <p class="text-slate-600 font-medium text-sm">Tidak ada data yang cocok.</p>
+                    <p class="text-slate-400 text-xs mt-1">Coba kata kunci lain atau tambahkan baris baru.</p>
+                </div>
+
+                <!-- Footer Tabel -->
+                <div class="px-4 py-3 bg-slate-50/60 border-t border-slate-200 flex items-center justify-between text-xs text-slate-500">
+                    <span id="row-count-text">0 baris</span>
+                    <span id="mode-indicator" class="font-medium"></span>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Modal Tambah Baris Baru -->
+    <div id="add-row-modal" class="hidden fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-xl max-w-lg w-full p-6 border border-slate-100 max-h-[90vh] overflow-y-auto">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-lg font-bold text-slate-900">Tambah Baris Baru</h3>
+                <button type="button" id="close-add-modal-btn" class="p-1.5 text-slate-400 hover:text-slate-700 rounded-lg cursor-pointer">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+            <form id="add-row-form" class="space-y-4">
+                <div id="add-row-fields" class="space-y-3">
+                    <!-- Field input digenerate otomatis sesuai header kolom -->
+                </div>
+                <div class="flex items-center justify-end gap-2.5 pt-4 border-t border-slate-100">
+                    <button type="button" id="cancel-add-row-btn" class="px-4 py-2.5 rounded-xl text-sm font-medium text-slate-600 hover:bg-slate-100 transition-all cursor-pointer">
+                        Batal
+                    </button>
+                    <button type="submit" id="submit-add-row-btn" class="px-5 py-2.5 rounded-xl text-sm font-semibold bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm transition-all cursor-pointer">
+                        Simpan ke Sheet
+                    </button>
+                </div>
+            </form>
+        </div>
     </div>
 
-    <!-- Notifikasi Toast (pengganti alert) -->
-    <div id="toast-container" class="fixed bottom-5 right-5 left-5 sm:left-auto z-50 flex flex-col gap-2 pointer-events-none"></div>
-
-    <!-- Modal Konfirmasi Kustom (pengganti confirm) -->
-    <div id="confirm-modal" class="hidden fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4">
+    <!-- Modal Konfirmasi Kosongkan Baris -->
+    <div id="confirm-clear-modal" class="hidden fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4">
         <div class="bg-white rounded-2xl shadow-xl max-w-sm w-full p-6 border border-slate-100">
-            <h2 class="text-lg font-bold text-slate-900 mb-2">Hapus Tugas Selesai?</h2>
-            <p class="text-sm text-slate-500 mb-6">Semua tugas yang sudah ditandai selesai akan dihapus secara permanen dari daftar ini.</p>
+            <h3 class="text-lg font-bold text-slate-900 mb-2">Kosongkan Baris Ini?</h3>
+            <p id="confirm-clear-desc" class="text-sm text-slate-500 mb-6">Isi sel pada baris ini akan dihapus di Google Spreadsheet.</p>
             <div class="flex items-center justify-end gap-2.5">
-                <button type="button" id="modal-cancel-btn" class="px-4 py-2.5 rounded-xl text-sm font-medium text-slate-600 hover:bg-slate-100 transition-all cursor-pointer">
+                <button type="button" id="cancel-clear-btn" class="px-4 py-2.5 rounded-xl text-sm font-medium text-slate-600 hover:bg-slate-100 transition-all cursor-pointer">
                     Batal
                 </button>
-                <button type="button" id="modal-confirm-btn" class="px-4 py-2.5 rounded-xl text-sm font-medium bg-rose-600 hover:bg-rose-700 text-white shadow-sm transition-all cursor-pointer">
-                    Ya, Hapus
+                <button type="button" id="confirm-clear-btn" class="px-4 py-2.5 rounded-xl text-sm font-semibold bg-rose-600 hover:bg-rose-700 text-white shadow-sm transition-all cursor-pointer">
+                    Ya, Kosongkan
                 </button>
             </div>
         </div>
     </div>
 
+    <!-- Modal Panduan Setup Google Cloud -->
+    <div id="help-modal" class="hidden fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-xl max-w-xl w-full p-6 border border-slate-100 max-h-[85vh] overflow-y-auto">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-lg font-bold text-slate-900">Cara Menghubungkan ke Google Sheets</h3>
+                <button type="button" id="close-help-btn" class="p-1.5 text-slate-400 hover:text-slate-700 rounded-lg cursor-pointer">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+            <ol class="list-decimal list-inside space-y-3 text-sm text-slate-600 leading-relaxed">
+                <li>Buka <strong>Google Cloud Console</strong>, buat project baru, lalu aktifkan <strong>Google Sheets API</strong> di menu Library.</li>
+                <li>Di menu <strong>OAuth consent screen</strong>, pilih <em>External</em>, isi nama aplikasi, dan masukkan email kamu di bagian <strong>Test users</strong>.</li>
+                <li>Di menu <strong>Credentials</strong>, buat <strong>OAuth client ID</strong> bertipe <em>Web application</em>.</li>
+                <li>Pada bagian <strong>Authorized JavaScript origins</strong>, masukkan URL GitHub Pages kamu (contoh: <code class="bg-slate-100 px-1.5 py-0.5 rounded text-xs">https://username.github.io</code>).</li>
+                <li>Salin <strong>Client ID</strong> yang dibuat, lalu tempelkan bersama URL Google Spreadsheet kamu di panel Koneksi aplikasi ini.</li>
+                <li>Pastikan baris pertama (baris 1) di Google Spreadsheet kamu berisi <strong>judul kolom</strong> (misal: Nama, Status, Catatan).</li>
+            </ol>
+            <div class="mt-6 flex justify-end">
+                <button type="button" id="ok-help-btn" class="px-5 py-2.5 bg-slate-900 hover:bg-slate-800 text-white text-sm font-medium rounded-xl cursor-pointer">
+                    Mengerti
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Container Notifikasi Toast -->
+    <div id="toast-container" class="fixed bottom-5 right-5 left-5 sm:left-auto z-50 flex flex-col gap-2 pointer-events-none"></div>
+
     <script>
         /**
-         * Aplikasi To-Do List Sederhana
-         * Menyimpan data secara lokal menggunakan localStorage browser.
+         * Google Sheets Real-Time Editor
+         * Menggunakan Google Identity Services (OAuth 2.0) dan Google Sheets API v4
+         * Berjalan 100% di sisi klien (cocok untuk GitHub Pages).
          */
 
-        // Kunci penyimpanan di localStorage
-        const STORAGE_KEY = 'webapp_todolist_data_v1';
+        // State Aplikasi (disimpan di memori sesi)
+        const state = {
+            mode: 'disconnected', // 'disconnected' | 'demo' | 'google'
+            clientId: '',
+            spreadsheetId: '',
+            sheetName: 'Sheet1',
+            accessToken: null,
+            tokenClient: null,
+            headers: [],
+            rows: [], // Array objek: { sheetRowNumber: number, values: string[] }
+            searchQuery: '',
+            isEditingCell: false,
+            syncIntervalId: null,
+            pendingClearRow: null
+        };
 
-        // State aplikasi
-        let todos = [];
-        let currentFilter = 'all'; // 'all' | 'active' | 'completed'
-        let editingId = null;
+        // Data Contoh untuk Mode Demo
+        const DEMO_HEADERS = ['Kode', 'Nama Tugas', 'PIC', 'Status', 'Catatan'];
+        const DEMO_ROWS = [
+            ['PRJ-01', 'Setup Repository GitHub', 'Budi', 'Selesai', 'Deploy ke GitHub Pages'],
+            ['PRJ-02', 'Aktifkan Google Sheets API', 'Siti', 'Proses', 'Menunggu OAuth Client ID'],
+            ['PRJ-03', 'Uji Edit Real-Time', 'Andi', 'Belum Mulai', 'Coba klik sel ini untuk mengedit!'],
+            ['PRJ-04', 'Review Hak Akses Tim', 'Rina', 'Proses', 'Tambahkan email ke Test Users']
+        ];
 
         // Referensi Elemen DOM
-        const todoForm = document.getElementById('todo-form');
-        const todoInput = document.getElementById('todo-input');
-        const todoPriority = document.getElementById('todo-priority');
-        const todoList = document.getElementById('todo-list');
-        const emptyState = document.getElementById('empty-state');
-        const emptyTitle = document.getElementById('empty-title');
-        const emptySubtitle = document.getElementById('empty-subtitle');
-        const itemsLeftEl = document.getElementById('items-left');
-        const progressText = document.getElementById('progress-text');
-        const progressBar = document.getElementById('progress-bar');
-        const clearCompletedBtn = document.getElementById('clear-completed-btn');
-        const filterBtns = document.querySelectorAll('.filter-btn');
-        const currentDateEl = document.getElementById('current-date');
+        const configPanel = document.getElementById('config-panel');
+        const workspaceSection = document.getElementById('workspace-section');
+        const connectForm = document.getElementById('connect-form');
+        const clientIdInput = document.getElementById('client-id-input');
+        const spreadsheetIdInput = document.getElementById('spreadsheet-id-input');
+        const sheetNameInput = document.getElementById('sheet-name-input');
+        const currentOriginEl = document.getElementById('current-origin');
+        const logoutBtn = document.getElementById('logout-btn');
+        const demoModeBtn = document.getElementById('demo-mode-btn');
+        const toggleConfigBtn = document.getElementById('toggle-config-btn');
+
+        const sheetSubtitle = document.getElementById('sheet-subtitle');
+        const statusBadge = document.getElementById('status-badge');
+        const statusDot = document.getElementById('status-dot');
+        const statusText = document.getElementById('status-text');
+
+        const searchInput = document.getElementById('search-input');
+        const autoSyncSelect = document.getElementById('auto-sync-select');
+        const refreshBtn = document.getElementById('refresh-btn');
+        const refreshIcon = document.getElementById('refresh-icon');
+        const addRowBtn = document.getElementById('add-row-btn');
+        const lastSyncText = document.getElementById('last-sync-text');
+
+        const sheetThead = document.getElementById('sheet-thead');
+        const sheetTbody = document.getElementById('sheet-tbody');
+        const tableEmptyState = document.getElementById('table-empty-state');
+        const rowCountText = document.getElementById('row-count-text');
+        const modeIndicator = document.getElementById('mode-indicator');
+
+        // Modal Tambah Baris
+        const addRowModal = document.getElementById('add-row-modal');
+        const addRowForm = document.getElementById('add-row-form');
+        const addRowFields = document.getElementById('add-row-fields');
+        const closeAddModalBtn = document.getElementById('close-add-modal-btn');
+        const cancelAddRowBtn = document.getElementById('cancel-add-row-btn');
+        const submitAddRowBtn = document.getElementById('submit-add-row-btn');
+
+        // Modal Konfirmasi Hapus Baris
+        const confirmClearModal = document.getElementById('confirm-clear-modal');
+        const confirmClearDesc = document.getElementById('confirm-clear-desc');
+        const cancelClearBtn = document.getElementById('cancel-clear-btn');
+        const confirmClearBtn = document.getElementById('confirm-clear-btn');
+
+        // Modal Panduan
+        const helpModal = document.getElementById('help-modal');
+        const openHelpBtn = document.getElementById('open-help-btn');
+        const closeHelpBtn = document.getElementById('close-help-btn');
+        const okHelpBtn = document.getElementById('ok-help-btn');
+
         const toastContainer = document.getElementById('toast-container');
 
-        // Referensi Modal Konfirmasi
-        const confirmModal = document.getElementById('confirm-modal');
-        const modalCancelBtn = document.getElementById('modal-cancel-btn');
-        const modalConfirmBtn = document.getElementById('modal-confirm-btn');
+        // ==========================================
+        // UTILITAS & HELPER
+        // ==========================================
 
         /**
-         * Menampilkan tanggal hari ini dalam format Bahasa Indonesia
+         * Mengonversi indeks kolom (0-based) menjadi huruf kolom A1 Notation (A, B, ..., Z, AA, AB...)
          */
-        function renderCurrentDate() {
-            const options = { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' };
-            const today = new Date();
-            currentDateEl.textContent = today.toLocaleDateString('id-ID', options);
-        }
-
-        /**
-         * Memuat daftar tugas dari localStorage dengan penanganan error
-         */
-        function loadTodos() {
-            try {
-                const saved = localStorage.getItem(STORAGE_KEY);
-                if (saved) {
-                    const parsed = JSON.parse(saved);
-                    if (Array.isArray(parsed)) {
-                        todos = parsed;
-                    }
-                }
-            } catch (error) {
-                console.error('Gagal memuat data dari localStorage:', error);
-                todos = [];
+        function colIndexToLetter(index) {
+            let letter = '';
+            let temp = index;
+            while (temp >= 0) {
+                letter = String.fromCharCode((temp % 26) + 65) + letter;
+                temp = Math.floor(temp / 26) - 1;
             }
+            return letter;
         }
 
         /**
-         * Menyimpan daftar tugas ke localStorage
+         * Mengekstrak Spreadsheet ID jika pengguna menempelkan URL Google Sheets lengkap
          */
-        function saveTodos() {
-            try {
-                localStorage.setItem(STORAGE_KEY, JSON.stringify(todos));
-            } catch (error) {
-                console.error('Gagal menyimpan data ke localStorage:', error);
-                showToast('Gagal menyimpan data secara lokal.', 'error');
-            }
+        function extractSpreadsheetId(input) {
+            const trimmed = input.trim();
+            const match = trimmed.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
+            return match ? match[1] : trimmed;
         }
 
         /**
-         * Menampilkan notifikasi toast singkat di pojok bawah
+         * Melindungi teks dari XSS saat dirender ke HTML
+         */
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text == null ? '' : String(text);
+            return div.innerHTML;
+        }
+
+        /**
+         * Menampilkan notifikasi toast di pojok layar
          */
         function showToast(message, type = 'info') {
             const toast = document.createElement('div');
-            const colorClass = type === 'error'
-                ? 'bg-rose-600 text-white'
-                : 'bg-slate-900 text-white';
+            let colorClass = 'bg-slate-900 text-white';
+            if (type === 'success') colorClass = 'bg-emerald-600 text-white';
+            if (type === 'error') colorClass = 'bg-rose-600 text-white';
 
             toast.className = `${colorClass} px-4 py-3 rounded-xl shadow-lg text-sm font-medium pointer-events-auto transition-all duration-300 transform translate-y-2 opacity-0`;
             toast.textContent = message;
             toastContainer.appendChild(toast);
 
-            // Animasi masuk
             requestAnimationFrame(() => {
                 toast.classList.remove('translate-y-2', 'opacity-0');
             });
 
-            // Hapus otomatis setelah 2.5 detik
             setTimeout(() => {
                 toast.classList.add('translate-y-2', 'opacity-0');
                 setTimeout(() => toast.remove(), 300);
-            }, 2500);
+            }, 3000);
         }
 
         /**
-         * Mengembalikan kelas badge Tailwind sesuai tingkat prioritas
+         * Memperbarui badge status di navbar
          */
-        function getPriorityBadge(priority) {
-            switch (priority) {
-                case 'mendesak':
-                    return { label: 'Mendesak', classes: 'bg-rose-50 text-rose-700 border border-rose-200/80' };
-                case 'penting':
-                    return { label: 'Penting', classes: 'bg-amber-50 text-amber-700 border border-amber-200/80' };
-                default:
-                    return { label: 'Normal', classes: 'bg-slate-100 text-slate-600 border border-slate-200/80' };
-            }
-        }
+        function updateStatusUI(status, text) {
+            statusBadge.classList.remove('hidden');
+            statusBadge.classList.add('flex');
+            statusText.textContent = text;
 
-        /**
-         * Mencegah serangan XSS saat menampilkan teks input pengguna
-         */
-        function escapeHtml(text) {
-            const div = document.createElement('div');
-            div.textContent = text;
-            return div.innerHTML;
-        }
+            // Reset warna
+            statusBadge.className = 'hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium';
+            statusDot.className = 'w-2 h-2 rounded-full';
 
-        /**
-         * Memperbarui tampilan daftar tugas, progress bar, dan statistik
-         */
-        function renderTodos() {
-            // Filter tugas sesuai tab yang dipilih
-            const filteredTodos = todos.filter(todo => {
-                if (currentFilter === 'active') return !todo.completed;
-                if (currentFilter === 'completed') return todo.completed;
-                return true;
-            });
-
-            // Hitung statistik
-            const totalCount = todos.length;
-            const completedCount = todos.filter(t => t.completed).length;
-            const activeCount = totalCount - completedCount;
-            const percentage = totalCount === 0 ? 0 : Math.round((completedCount / totalCount) * 100);
-
-            // Perbarui header progress & footer
-            progressText.textContent = `${percentage}% Selesai`;
-            progressBar.style.width = `${percentage}%`;
-            itemsLeftEl.textContent = `${activeCount} tugas tersisa`;
-
-            // Tampilkan/sembunyikan tombol hapus selesai
-            if (completedCount > 0) {
-                clearCompletedBtn.classList.remove('hidden');
+            if (status === 'connected') {
+                statusBadge.classList.add('bg-emerald-50', 'text-emerald-700');
+                statusDot.classList.add('bg-emerald-500');
+            } else if (status === 'demo') {
+                statusBadge.classList.add('bg-indigo-50', 'text-indigo-700');
+                statusDot.classList.add('bg-indigo-500');
+            } else if (status === 'syncing') {
+                statusBadge.classList.add('bg-amber-50', 'text-amber-700');
+                statusDot.classList.add('bg-amber-500', 'animate-pulse');
             } else {
-                clearCompletedBtn.classList.add('hidden');
+                statusBadge.classList.add('bg-slate-100', 'text-slate-600');
+                statusDot.classList.add('bg-slate-400');
             }
+        }
 
-            // Kosongkan list sebelum render ulang
-            todoList.innerHTML = '';
+        /**
+         * Mencatat waktu sinkronisasi terakhir
+         */
+        function updateLastSyncTime() {
+            const now = new Date();
+            const timeStr = now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            lastSyncText.textContent = `Tersinkronisasi pukul ${timeStr}`;
+        }
 
-            // Tampilkan empty state jika tidak ada item
-            if (filteredTodos.length === 0) {
-                emptyState.classList.remove('hidden');
-                if (totalCount === 0) {
-                    emptyTitle.textContent = 'Belum ada tugas';
-                    emptySubtitle.textContent = 'Tambahkan tugas pertamamu di atas untuk mulai produktif.';
-                } else if (currentFilter === 'active') {
-                    emptyTitle.textContent = 'Semua tugas sudah selesai!';
-                    emptySubtitle.textContent = 'Kerja bagus, tidak ada tugas aktif yang tersisa.';
-                } else {
-                    emptyTitle.textContent = 'Belum ada tugas yang selesai';
-                    emptySubtitle.textContent = 'Centang tugas yang sudah kamu kerjakan.';
-                }
+        // ==========================================
+        // KONEKSI GOOGLE SHEETS API (OAUTH 2.0)
+        // ==========================================
+
+        /**
+         * Memulai proses login OAuth 2.0 menggunakan Google Identity Services
+         */
+        function connectToGoogleSheets() {
+            const clientId = clientIdInput.value.trim();
+            const rawSpreadsheet = spreadsheetIdInput.value.trim();
+            const sheetName = sheetNameInput.value.trim() || 'Sheet1';
+
+            if (!clientId) {
+                showToast('Masukkan Google OAuth Client ID terlebih dahulu.', 'error');
+                clientIdInput.focus();
+                return;
+            }
+            if (!rawSpreadsheet) {
+                showToast('Masukkan Spreadsheet ID atau URL Google Sheets.', 'error');
+                spreadsheetIdInput.focus();
+                return;
+            }
+            if (typeof google === 'undefined' || !google.accounts || !google.accounts.oauth2) {
+                showToast('Script Google Identity belum termuat. Periksa koneksi internet.', 'error');
                 return;
             }
 
-            emptyState.classList.add('hidden');
+            state.clientId = clientId;
+            state.spreadsheetId = extractSpreadsheetId(rawSpreadsheet);
+            state.sheetName = sheetName;
 
-            // Render tiap item tugas
-            filteredTodos.forEach(todo => {
-                const li = document.createElement('li');
-                const isEditing = editingId === todo.id;
-                const badge = getPriorityBadge(todo.priority);
+            try {
+                state.tokenClient = google.accounts.oauth2.initTokenClient({
+                    client_id: state.clientId,
+                    scope: 'https://www.googleapis.com/auth/spreadsheets',
+                    callback: async (tokenResponse) => {
+                        if (tokenResponse.error) {
+                            showToast(`Gagal login Google: ${tokenResponse.error}`, 'error');
+                            return;
+                        }
+                        state.accessToken = tokenResponse.access_token;
+                        state.mode = 'google';
+                        configPanel.classList.add('hidden');
+                        workspaceSection.classList.remove('hidden');
+                        logoutBtn.classList.remove('hidden');
+                        sheetSubtitle.textContent = `Sheet: ${state.sheetName} (${state.spreadsheetId.slice(0, 8)}...)`;
+                        modeIndicator.textContent = 'Mode: Live Google Sheets API';
+                        modeIndicator.className = 'font-semibold text-emerald-600';
 
-                li.className = `group flex items-center gap-3 p-3 sm:p-3.5 rounded-xl border transition-all ${
-                    todo.completed
-                        ? 'bg-slate-50/70 border-slate-100'
-                        : 'bg-white border-slate-200/80 hover:border-indigo-200 hover:shadow-xs'
-                }`;
-
-                if (isEditing) {
-                    // Mode Edit Inline
-                    li.innerHTML = `
-                        <input
-                            type="text"
-                            id="edit-input-${todo.id}"
-                            value="${escapeHtml(todo.text)}"
-                            class="flex-1 px-3 py-1.5 bg-slate-50 border border-indigo-400 rounded-lg text-sm sm:text-base text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
-                        >
-                        <div class="flex items-center gap-1.5">
-                            <button type="button" onclick="saveEdit('${todo.id}')" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-medium rounded-lg transition-all cursor-pointer">
-                                Simpan
-                            </button>
-                            <button type="button" onclick="cancelEdit()" class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-medium rounded-lg transition-all cursor-pointer">
-                                Batal
-                            </button>
-                        </div>
-                    `;
-                } else {
-                    // Mode Tampilan Normal
-                    li.innerHTML = `
-                        <button
-                            type="button"
-                            onclick="toggleTodo('${todo.id}')"
-                            aria-label="${todo.completed ? 'Tandai belum selesai' : 'Tandai selesai'}"
-                            class="shrink-0 w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all cursor-pointer ${
-                                todo.completed
-                                    ? 'bg-indigo-600 border-indigo-600 text-white'
-                                    : 'border-slate-300 hover:border-indigo-500 bg-white'
-                            }"
-                        >
-                            ${todo.completed ? `
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
-                                    <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
-                                </svg>
-                            ` : ''}
-                        </button>
-
-                        <div class="flex-1 min-w-0 flex flex-wrap items-center gap-2">
-                            <span
-                                onclick="toggleTodo('${todo.id}')"
-                                class="text-sm sm:text-base break-words cursor-pointer transition-all ${
-                                    todo.completed ? 'line-through text-slate-400' : 'text-slate-800 font-medium'
-                                }"
-                            >
-                                ${escapeHtml(todo.text)}
-                            </span>
-                            <span class="text-[11px] font-medium px-2 py-0.5 rounded-md ${badge.classes} ${todo.completed ? 'opacity-50' : ''}">
-                                ${badge.label}
-                            </span>
-                        </div>
-
-                        <div class="flex items-center gap-1 shrink-0 sm:opacity-0 sm:group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
-                            <button
-                                type="button"
-                                onclick="startEdit('${todo.id}')"
-                                aria-label="Edit tugas"
-                                class="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all cursor-pointer"
-                            >
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                    <path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                                </svg>
-                            </button>
-                            <button
-                                type="button"
-                                onclick="deleteTodo('${todo.id}')"
-                                aria-label="Hapus tugas"
-                                class="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all cursor-pointer"
-                            >
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                    <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                </svg>
-                            </button>
-                        </div>
-                    `;
-                }
-
-                todoList.appendChild(li);
-
-                // Fokus otomatis pada input saat masuk mode edit
-                if (isEditing) {
-                    const editInput = document.getElementById(`edit-input-${todo.id}`);
-                    if (editInput) {
-                        editInput.focus();
-                        editInput.setSelectionRange(editInput.value.length, editInput.value.length);
-                        editInput.addEventListener('keydown', (e) => {
-                            if (e.key === 'Enter') saveEdit(todo.id);
-                            if (e.key === 'Escape') cancelEdit();
-                        });
+                        await fetchSheetData();
+                        setupAutoSync();
+                        showToast('Berhasil terhubung ke Google Spreadsheet!', 'success');
                     }
-                }
-            });
-        }
-
-        /**
-         * Menambah tugas baru ke dalam daftar
-         */
-        function addTodo(text, priority) {
-            const trimmed = text.trim();
-            if (!trimmed) {
-                showToast('Tulis nama tugas terlebih dahulu.', 'error');
-                todoInput.focus();
-                return;
-            }
-
-            const newTodo = {
-                id: Date.now().toString(36) + Math.random().toString(36).substring(2, 6),
-                text: trimmed,
-                priority: priority || 'normal',
-                completed: false,
-                createdAt: new Date().toISOString()
-            };
-
-            todos.unshift(newTodo);
-            saveTodos();
-            renderTodos();
-            todoInput.value = '';
-            todoPriority.value = 'normal';
-            todoInput.focus();
-            showToast('Tugas berhasil ditambahkan.');
-        }
-
-        /**
-         * Mengubah status selesai/belum selesai pada tugas
-         */
-        window.toggleTodo = function(id) {
-            todos = todos.map(todo =>
-                todo.id === id ? { ...todo, completed: !todo.completed } : todo
-            );
-            saveTodos();
-            renderTodos();
-        };
-
-        /**
-         * Menghapus satu tugas berdasarkan ID
-         */
-        window.deleteTodo = function(id) {
-            todos = todos.filter(todo => todo.id !== id);
-            if (editingId === id) editingId = null;
-            saveTodos();
-            renderTodos();
-            showToast('Tugas dihapus.');
-        };
-
-        /**
-         * Masuk ke mode edit untuk satu tugas
-         */
-        window.startEdit = function(id) {
-            editingId = id;
-            renderTodos();
-        };
-
-        /**
-         * Menyimpan perubahan hasil edit tugas
-         */
-        window.saveEdit = function(id) {
-            const editInput = document.getElementById(`edit-input-${id}`);
-            if (!editInput) return;
-
-            const newText = editInput.value.trim();
-            if (!newText) {
-                showToast('Nama tugas tidak boleh kosong.', 'error');
-                editInput.focus();
-                return;
-            }
-
-            todos = todos.map(todo =>
-                todo.id === id ? { ...todo, text: newText } : todo
-            );
-            editingId = null;
-            saveTodos();
-            renderTodos();
-            showToast('Tugas diperbarui.');
-        };
-
-        /**
-         * Membatalkan mode edit
-         */
-        window.cancelEdit = function() {
-            editingId = null;
-            renderTodos();
-        };
-
-        // Event Listener: Submit Form Tambah Tugas
-        todoForm.addEventListener('submit', (e) => {
-            e.preventDefault();
-            addTodo(todoInput.value, todoPriority.value);
-        });
-
-        // Event Listener: Tombol Filter (Semua / Aktif / Selesai)
-        filterBtns.forEach(btn => {
-            btn.addEventListener('click', () => {
-                currentFilter = btn.dataset.filter;
-
-                filterBtns.forEach(b => {
-                    b.classList.remove('bg-white', 'text-slate-900', 'shadow-sm');
-                    b.classList.add('text-slate-600');
                 });
 
-                btn.classList.add('bg-white', 'text-slate-900', 'shadow-sm');
-                btn.classList.remove('text-slate-600');
-
-                renderTodos();
-            });
-        });
-
-        // Event Listener: Buka Modal Konfirmasi Hapus Selesai
-        clearCompletedBtn.addEventListener('click', () => {
-            confirmModal.classList.remove('hidden');
-        });
-
-        // Event Listener: Tutup Modal
-        modalCancelBtn.addEventListener('click', () => {
-            confirmModal.classList.add('hidden');
-        });
-
-        // Tutup modal jika klik di area luar kotak dialog
-        confirmModal.addEventListener('click', (e) => {
-            if (e.target === confirmModal) {
-                confirmModal.classList.add('hidden');
+                // Buka popup izin akses Google
+                state.tokenClient.requestAccessToken({ prompt: 'consent' });
+            } catch (error) {
+                console.error('Error inisialisasi OAuth:', error);
+                showToast('Gagal memulai autentikasi Google. Periksa format Client ID.', 'error');
             }
+        }
+
+        /**
+         * Mengambil seluruh data dari tab sheet via Google Sheets API v4
+         */
+        async function fetchSheetData(silent = false) {
+            if (state.mode === 'demo') {
+                updateLastSyncTime();
+                renderTable();
+                return;
+            }
+            if (state.mode !== 'google' || !state.accessToken) return;
+
+            // Jangan ganggu pengguna jika sedang mengetik di salah satu sel
+            if (silent && state.isEditingCell) return;
+
+            if (!silent) {
+                updateStatusUI('syncing', 'Memuat data...');
+                refreshIcon.classList.add('animate-spin');
+            }
+
+            try {
+                const range = encodeURIComponent(`'${state.sheetName}'!A1:Z1000`);
+                const url = `https://sheets.googleapis.com/v4/spreadsheets/${state.spreadsheetId}/values/${range}`;
+
+                const response = await fetch(url, {
+                    headers: {
+                        'Authorization': `Bearer ${state.accessToken}`
+                    }
+                });
+
+                if (response.status === 401) {
+                    stopAutoSync();
+                    updateStatusUI('offline', 'Sesi Habis');
+                    showToast('Sesi login Google habis. Silakan login ulang di menu Koneksi.', 'error');
+                    configPanel.classList.remove('hidden');
+                    return;
+                }
+
+                if (!response.ok) {
+                    const errData = await response.json().catch(() => ({}));
+                    throw new Error(errData.error?.message || `HTTP Error ${response.status}`);
+                }
+
+                const data = await response.json();
+                const values = data.values || [];
+
+                if (values.length === 0) {
+                    state.headers = ['Kolom 1', 'Kolom 2', 'Kolom 3'];
+                    state.rows = [];
+                } else {
+                    // Baris pertama dianggap sebagai header kolom
+                    state.headers = values[0];
+                    const colCount = state.headers.length;
+
+                    // Baris ke-2 dst adalah data (nomor baris asli di Sheets = index + 2)
+                    state.rows = values.slice(1).map((rowArr, idx) => {
+                        const padded = Array.from({ length: colCount }, (_, i) => rowArr[i] ?? '');
+                        return {
+                            sheetRowNumber: idx + 2,
+                            values: padded
+                        };
+                    });
+                }
+
+                updateStatusUI('connected', 'Terhubung (Live)');
+                updateLastSyncTime();
+                renderTable();
+            } catch (error) {
+                console.error('Gagal memuat Google Sheet:', error);
+                if (!silent) {
+                    showToast(`Gagal memuat sheet: ${error.message}`, 'error');
+                }
+                updateStatusUI('offline', 'Gagal Sinkron');
+            } finally {
+                refreshIcon.classList.remove('animate-spin');
+            }
+        }
+
+        /**
+         * Memperbarui satu sel secara real-time ke Google Sheets API
+         */
+        async function updateCellValue(sheetRowNumber, colIndex, newValue, tdElement) {
+            // Update state lokal terlebih dahulu agar responsif
+            const targetRow = state.rows.find(r => r.sheetRowNumber === sheetRowNumber);
+            if (!targetRow) return;
+
+            const oldValue = targetRow.values[colIndex] ?? '';
+            if (oldValue === newValue) return; // Tidak ada perubahan
+
+            targetRow.values[colIndex] = newValue;
+
+            if (state.mode === 'demo') {
+                tdElement.classList.add('bg-emerald-50');
+                setTimeout(() => tdElement.classList.remove('bg-emerald-50'), 600);
+                updateLastSyncTime();
+                showToast(`Sel ${colIndexToLetter(colIndex)}${sheetRowNumber} diperbarui (Demo).`, 'success');
+                return;
+            }
+
+            // Mode Live Google Sheets
+            const cellA1 = `${colIndexToLetter(colIndex)}${sheetRowNumber}`;
+            updateStatusUI('syncing', `Menyimpan ${cellA1}...`);
+            tdElement.classList.add('bg-amber-50');
+
+            try {
+                const range = encodeURIComponent(`'${state.sheetName}'!${cellA1}`);
+                const url = `https://sheets.googleapis.com/v4/spreadsheets/${state.spreadsheetId}/values/${range}?valueInputOption=USER_ENTERED`;
+
+                const response = await fetch(url, {
+                    method: 'PUT',
+                    headers: {
+                        'Authorization': `Bearer ${state.accessToken}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        values: [[newValue]]
+                    })
+                });
+
+                if (!response.ok) {
+                    const errData = await response.json().catch(() => ({}));
+                    throw new Error(errData.error?.message || `HTTP Error ${response.status}`);
+                }
+
+                tdElement.classList.remove('bg-amber-50');
+                tdElement.classList.add('bg-emerald-50');
+                setTimeout(() => tdElement.classList.remove('bg-emerald-50'), 800);
+
+                updateStatusUI('connected', 'Terhubung (Live)');
+                updateLastSyncTime();
+            } catch (error) {
+                console.error('Gagal menyimpan sel:', error);
+                // Kembalikan nilai lama jika gagal
+                targetRow.values[colIndex] = oldValue;
+                tdElement.classList.remove('bg-amber-50');
+                tdElement.classList.add('bg-rose-50');
+                setTimeout(() => tdElement.classList.remove('bg-rose-50'), 1000);
+                renderTable();
+                updateStatusUI('connected', 'Terhubung (Live)');
+                showToast(`Gagal menyimpan sel ${cellA1}: ${error.message}`, 'error');
+            }
+        }
+
+        /**
+         * Menambahkan baris baru di bagian paling bawah Sheet
+         */
+        async function appendNewRow(newValues) {
+            if (state.mode === 'demo') {
+                const nextRowNum = state.rows.length > 0
+                    ? state.rows[state.rows.length - 1].sheetRowNumber + 1
+                    : 2;
+                state.rows.push({
+                    sheetRowNumber: nextRowNum,
+                    values: newValues
+                });
+                updateLastSyncTime();
+                renderTable();
+                showToast('Baris baru ditambahkan (Mode Demo).', 'success');
+                return true;
+            }
+
+            updateStatusUI('syncing', 'Menambah baris...');
+            try {
+                const range = encodeURIComponent(`'${state.sheetName}'!A1`);
+                const url = `https://sheets.googleapis.com/v4/spreadsheets/${state.spreadsheetId}/values/${range}:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`;
+
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${state.accessToken}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        values: [newValues]
+                    })
+                });
+
+                if (!response.ok) {
+                    const errData = await response.json().catch(() => ({}));
+                    throw new Error(errData.error?.message || `HTTP Error ${response.status}`);
+                }
+
+                await fetchSheetData();
+                showToast('Baris baru berhasil disimpan ke Google Sheets!', 'success');
+                return true;
+            } catch (error) {
+                console.error('Gagal menambah baris:', error);
+                updateStatusUI('connected', 'Terhubung (Live)');
+                showToast(`Gagal menambah baris: ${error.message}`, 'error');
+                return false;
+            }
+        }
+
+        /**
+         * Mengosongkan isi seluruh sel pada baris tertentu
+         */
+        async function clearSheetRow(sheetRowNumber) {
+            const colCount = state.headers.length;
+            const lastColLetter = colIndexToLetter(Math.max(colCount - 1, 0));
+
+            if (state.mode === 'demo') {
+                state.rows = state.rows.filter(r => r.sheetRowNumber !== sheetRowNumber);
+                updateLastSyncTime();
+                renderTable();
+                showToast(`Baris ${sheetRowNumber} dihapus (Mode Demo).`, 'info');
+                return;
+            }
+
+            updateStatusUI('syncing', `Mengosongkan baris ${sheetRowNumber}...`);
+            try {
+                const range = encodeURIComponent(`'${state.sheetName}'!A${sheetRowNumber}:${lastColLetter}${sheetRowNumber}`);
+                const url = `https://sheets.googleapis.com/v4/spreadsheets/${state.spreadsheetId}/values/${range}:clear`;
+
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${state.accessToken}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                if (!response.ok) {
+                    const errData = await response.json().catch(() => ({}));
+                    throw new Error(errData.error?.message || `HTTP Error ${response.status}`);
+                }
+
+                await fetchSheetData();
+                showToast(`Baris ${sheetRowNumber} berhasil dikosongkan.`, 'success');
+            } catch (error) {
+                console.error('Gagal mengosongkan baris:', error);
+                updateStatusUI('connected', 'Terhubung (Live)');
+                showToast(`Gagal mengosongkan baris: ${error.message}`, 'error');
+            }
+        }
+
+        // ==========================================
+        // RENDERING TABEL & EDITING INLINE
+        // ==========================================
+
+        /**
+         * Merender header dan isi tabel spreadsheet berdasarkan state dan pencarian
+         */
+        function renderTable() {
+            // 1. Render Header Kolom
+            let headHtml = '<tr>';
+            headHtml += '<th class="px-3 py-3 w-12 text-center border-r border-slate-200 bg-slate-100/70 text-slate-400">#</th>';
+            state.headers.forEach((header, idx) => {
+                const colLetter = colIndexToLetter(idx);
+                headHtml += `
+                    <th class="px-4 py-3 min-w-[140px] border-r border-slate-200 last:border-r-0">
+                        <div class="flex items-center justify-between gap-2">
+                            <span class="truncate">${escapeHtml(header || `Kolom ${colLetter}`)}</span>
+                            <span class="text-[10px] font-mono text-slate-400 bg-slate-200/70 px-1.5 py-0.5 rounded">${colLetter}</span>
+                        </div>
+                    </th>
+                `;
+            });
+            headHtml += '<th class="px-3 py-3 w-14 text-center">Aksi</th>';
+            headHtml += '</tr>';
+            sheetThead.innerHTML = headHtml;
+
+            // 2. Filter Baris sesuai pencarian (mempertahankan sheetRowNumber asli)
+            const query = state.searchQuery.trim().toLowerCase();
+            const filteredRows = state.rows.filter(row => {
+                if (!query) return true;
+                return row.values.some(val => String(val).toLowerCase().includes(query));
+            });
+
+            // 3. Render Isi Baris
+            sheetTbody.innerHTML = '';
+
+            if (filteredRows.length === 0) {
+                tableEmptyState.classList.remove('hidden');
+            } else {
+                tableEmptyState.classList.add('hidden');
+            }
+
+            filteredRows.forEach(row => {
+                const tr = document.createElement('tr');
+                tr.className = 'hover:bg-slate-50/80 transition-colors group';
+
+                // Nomor Baris Asli di Google Sheet
+                const rowNumTd = document.createElement('td');
+                rowNumTd.className = 'px-3 py-2.5 text-center text-xs font-mono text-slate-400 bg-slate-50/60 border-r border-slate-100 select-none';
+                rowNumTd.textContent = row.sheetRowNumber;
+                tr.appendChild(rowNumTd);
+
+                // Sel Data (dapat diklik untuk edit inline)
+                state.headers.forEach((_, colIndex) => {
+                    const td = document.createElement('td');
+                    td.className = 'px-4 py-2.5 border-r border-slate-100 last:border-r-0 cursor-text transition-colors relative';
+                    const cellVal = row.values[colIndex] ?? '';
+                    td.textContent = cellVal;
+
+                    // Klik sel untuk mulai mengedit
+                    td.addEventListener('click', () => {
+                        if (td.querySelector('input')) return;
+                        activateCellEdit(td, row.sheetRowNumber, colIndex, row.values[colIndex] ?? '');
+                    });
+
+                    tr.appendChild(td);
+                });
+
+                // Tombol Aksi Kosongkan Baris
+                const actionTd = document.createElement('td');
+                actionTd.className = 'px-2 py-2 text-center';
+                actionTd.innerHTML = `
+                    <button
+                        type="button"
+                        class="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all cursor-pointer"
+                        title="Kosongkan baris ${row.sheetRowNumber}"
+                        aria-label="Kosongkan baris ${row.sheetRowNumber}"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                    </button>
+                `;
+                actionTd.querySelector('button').addEventListener('click', () => {
+                    openClearConfirmModal(row.sheetRowNumber);
+                });
+                tr.appendChild(actionTd);
+
+                sheetTbody.appendChild(tr);
+            });
+
+            // Perbarui jumlah baris di footer
+            rowCountText.textContent = query
+                ? `Menampilkan ${filteredRows.length} dari ${state.rows.length} baris`
+                : `Total ${state.rows.length} baris data`;
+        }
+
+        /**
+         * Mengubah sel tabel menjadi input teks untuk pengeditan inline
+         */
+        function activateCellEdit(td, sheetRowNumber, colIndex, currentValue) {
+            state.isEditingCell = true;
+
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.value = currentValue;
+            input.className = 'w-full px-2.5 py-1.5 -mx-2.5 -my-1.5 bg-white border-2 border-emerald-500 rounded-lg text-sm text-slate-900 focus:outline-none shadow-sm';
+
+            td.textContent = '';
+            td.appendChild(input);
+            input.focus();
+            input.select();
+
+            let isHandled = false;
+
+            const finishEdit = (save) => {
+                if (isHandled) return;
+                isHandled = true;
+                state.isEditingCell = false;
+
+                const finalValue = save ? input.value : currentValue;
+                td.textContent = finalValue;
+
+                if (save && finalValue !== currentValue) {
+                    updateCellValue(sheetRowNumber, colIndex, finalValue, td);
+                }
+            };
+
+            input.addEventListener('blur', () => finishEdit(true));
+            input.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    finishEdit(true);
+                } else if (e.key === 'Escape') {
+                    e.preventDefault();
+                    finishEdit(false);
+                }
+            });
+        }
+
+        // ==========================================
+        // AUTO-SYNC & MODE DEMO
+        // ==========================================
+
+        /**
+         * Mengatur interval polling otomatis agar perubahan dari Google Sheets langsung muncul
+         */
+        function setupAutoSync() {
+            stopAutoSync();
+            const intervalMs = parseInt(autoSyncSelect.value, 10);
+            if (intervalMs > 0 && state.mode === 'google') {
+                state.syncIntervalId = setInterval(() => {
+                    fetchSheetData(true);
+                }, intervalMs);
+            }
+        }
+
+        function stopAutoSync() {
+            if (state.syncIntervalId) {
+                clearInterval(state.syncIntervalId);
+                state.syncIntervalId = null;
+            }
+        }
+
+        /**
+         * Memuat Mode Demo agar pengguna bisa mencoba editor tanpa perlu setup Google Cloud dulu
+         */
+        function startDemoMode() {
+            stopAutoSync();
+            state.mode = 'demo';
+            state.headers = [...DEMO_HEADERS];
+            state.rows = DEMO_ROWS.map((arr, idx) => ({
+                sheetRowNumber: idx + 2,
+                values: [...arr]
+            }));
+
+            configPanel.classList.add('hidden');
+            workspaceSection.classList.remove('hidden');
+            logoutBtn.classList.remove('hidden');
+            sheetSubtitle.textContent = 'Mode Demo (Simulasi Lokal)';
+            modeIndicator.textContent = 'Mode: Simulasi Demo';
+            modeIndicator.className = 'font-semibold text-indigo-600';
+
+            updateStatusUI('demo', 'Mode Demo');
+            updateLastSyncTime();
+            renderTable();
+            showToast('Mode Demo aktif! Klik sel mana saja untuk mencoba edit real-time.', 'info');
+        }
+
+        /**
+         * Memutuskan koneksi saat ini dan kembali ke panel pengaturan
+         */
+        function disconnectSession() {
+            stopAutoSync();
+            state.mode = 'disconnected';
+            state.accessToken = null;
+            state.headers = [];
+            state.rows = [];
+            state.searchQuery = '';
+            searchInput.value = '';
+
+            workspaceSection.classList.add('hidden');
+            configPanel.classList.remove('hidden');
+            logoutBtn.classList.add('hidden');
+            sheetSubtitle.textContent = 'Belum terhubung ke Spreadsheet';
+            updateStatusUI('offline', 'Offline');
+            showToast('Koneksi diputus.');
+        }
+
+        // ==========================================
+        // MODAL TAMBAH BARIS & KONFIRMASI
+        // ==========================================
+
+        function openAddRowModal() {
+            addRowFields.innerHTML = '';
+            state.headers.forEach((header, idx) => {
+                const wrapper = document.createElement('div');
+                const labelText = header || `Kolom ${colIndexToLetter(idx)}`;
+                wrapper.innerHTML = `
+                    <label class="block text-xs font-semibold text-slate-700 mb-1">${escapeHtml(labelText)}</label>
+                    <input
+                        type="text"
+                        data-col-index="${idx}"
+                        placeholder="Isi ${escapeHtml(labelText)}..."
+                        class="add-row-input w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 focus:bg-white transition-all"
+                    >
+                `;
+                addRowFields.appendChild(wrapper);
+            });
+            addRowModal.classList.remove('hidden');
+            const firstInput = addRowFields.querySelector('input');
+            if (firstInput) firstInput.focus();
+        }
+
+        function closeAddRowModal() {
+            addRowModal.classList.add('hidden');
+        }
+
+        function openClearConfirmModal(sheetRowNumber) {
+            state.pendingClearRow = sheetRowNumber;
+            confirmClearDesc.textContent = `Seluruh isi pada baris ke-${sheetRowNumber} akan dikosongkan di Spreadsheet.`;
+            confirmClearModal.classList.remove('hidden');
+        }
+
+        function closeClearConfirmModal() {
+            state.pendingClearRow = null;
+            confirmClearModal.classList.add('hidden');
+        }
+
+        // ==========================================
+        // EVENT LISTENERS
+        // ==========================================
+
+        connectForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            connectToGoogleSheets();
         });
 
-        // Event Listener: Eksekusi Hapus Semua Tugas Selesai
-        modalConfirmBtn.addEventListener('click', () => {
-            todos = todos.filter(todo => !todo.completed);
-            saveTodos();
-            renderTodos();
-            confirmModal.classList.add('hidden');
-            showToast('Semua tugas selesai telah dihapus.');
+        demoModeBtn.addEventListener('click', startDemoMode);
+        logoutBtn.addEventListener('click', disconnectSession);
+
+        toggleConfigBtn.addEventListener('click', () => {
+            configPanel.classList.toggle('hidden');
         });
 
-        // Inisialisasi aplikasi saat halaman dimuat
+        searchInput.addEventListener('input', (e) => {
+            state.searchQuery = e.target.value;
+            renderTable();
+        });
+
+        autoSyncSelect.addEventListener('change', setupAutoSync);
+        refreshBtn.addEventListener('click', () => fetchSheetData(false));
+        addRowBtn.addEventListener('click', openAddRowModal);
+
+        // Modal Tambah Baris Events
+        closeAddModalBtn.addEventListener('click', closeAddRowModal);
+        cancelAddRowBtn.addEventListener('click', closeAddRowModal);
+        addRowModal.addEventListener('click', (e) => {
+            if (e.target === addRowModal) closeAddRowModal();
+        });
+
+        addRowForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const inputs = addRowFields.querySelectorAll('.add-row-input');
+            const newValues = Array.from(inputs).map(inp => inp.value.trim());
+
+            if (newValues.every(v => v === '')) {
+                showToast('Isi minimal satu kolom sebelum menyimpan.', 'error');
+                return;
+            }
+
+            submitAddRowBtn.disabled = true;
+            submitAddRowBtn.textContent = 'Menyimpan...';
+            const success = await appendNewRow(newValues);
+            submitAddRowBtn.disabled = false;
+            submitAddRowBtn.textContent = 'Simpan ke Sheet';
+
+            if (success) closeAddRowModal();
+        });
+
+        // Modal Konfirmasi Hapus Events
+        cancelClearBtn.addEventListener('click', closeClearConfirmModal);
+        confirmClearModal.addEventListener('click', (e) => {
+            if (e.target === confirmClearModal) closeClearConfirmModal();
+        });
+        confirmClearBtn.addEventListener('click', async () => {
+            const rowNum = state.pendingClearRow;
+            closeClearConfirmModal();
+            if (rowNum) await clearSheetRow(rowNum);
+        });
+
+        // Modal Panduan Events
+        openHelpBtn.addEventListener('click', () => helpModal.classList.remove('hidden'));
+        closeHelpBtn.addEventListener('click', () => helpModal.classList.add('hidden'));
+        okHelpBtn.addEventListener('click', () => helpModal.classList.add('hidden'));
+        helpModal.addEventListener('click', (e) => {
+            if (e.target === helpModal) helpModal.classList.add('hidden');
+        });
+
+        // Inisialisasi saat halaman siap
         window.addEventListener('DOMContentLoaded', () => {
-            renderCurrentDate();
-            loadTodos();
-            renderTodos();
+            currentOriginEl.textContent = window.location.origin;
         });
     </script>
 </body>
